@@ -1,45 +1,85 @@
+# Loon 配置 - 多机场 + 香港节点过滤 + 自动选最快节点 + 分类走不同策略
+# 更新日期参考：2026年2月
+# 请替换下面的订阅链接为你的真实机场订阅
+
 [General]
-ipv6 = false
-dns-server = system, 119.29.29.29, 223.5.5.5
-skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost, *.local, e.crashlytics.com, captures.icloud.com, mtalk.google.com, alt*.mtalk.google.com
-bypass-tun = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4
+loglevel = warning
+skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost, *.local, e.crashlytics.com
+bypass-system = true
+dns-server = system, 119.29.29.29, 223.5.5.5, 8.8.8.8
+# 如果你希望更干净的解析，可以启用fake-ip模式（需谨慎）
+# fake-ip-filter = *.lan, *.local, time.*.com, time.*.gov, time.apple.com, geolocation.onedrive.com
 
 [Proxy]
-# 此处手动添加节点，或通过下面的 [Proxy Group] 订阅
-# 示例：Direct = builtin, direct
+# ================= 手动添加多个机场订阅 =================
+# 方式1：直接粘贴订阅链接（推荐）
+# 方式2：你也可以使用订阅链接转本地节点后再筛选
+
+# 示例机场A（把这里替换成你的真实订阅链接）
+Proxy = subscribe, https://your-subscription-url-A.com/link/xxxxxx, tag=机场A, udp=true, update-interval=86400, enabled=true
+
+# 示例机场B
+Proxy = subscribe, https://your-subscription-url-B.com/xxxxxx, tag=机场B, udp=true, update-interval=86400, enabled=true
+
+# 示例机场C（可继续添加多条）
+# Proxy = subscribe, https://xxxx, tag=机场C, ...
 
 [Proxy Group]
-# 1. 订阅源：使用 filter 剔除香港节点 (HK|香港)
-# 请在下方 "" 中替换为您实际的机场订阅链接
-机场订阅 = subscribe, url="您的机场订阅链接1", filter="^(?!.*(HK|香港|HongKong)).*$"
-机场订阅2 = subscribe, url="您的机场订阅链接2", filter="^(?!.*(HK|香港|HongKong)).*$"
+# ------------------- 自动过滤香港节点 -------------------
+# 先把所有订阅节点收集到一个大组里
+AllProxies = select, 机场A, 机场B, 机场C, 手动选择, auto-香港过滤
 
-# 2. 自动测速组：Gemini, Google, YouTube, Copilot, OpenAI 使用
-# 筛选美国、台湾、日本、德国节点，并自动切换最快
-Fast_Auto = url-test, Proxy, 机场订阅, 机场订阅2, filter="(?i)US|USA|美国|TW|Taiwan|台湾|JP|Japan|日本|DE|Germany|德国", url=http://www.gstatic.com/generate_204, interval=300
+# 自动排除香港节点（关键字过滤方式）
+auto-香港过滤 = select-regex, AllProxies, ^(?!.*(香港|HK|港|hongkong|hong kong|HKTV|港台|TW港)).*$, policy=最快美台日德
 
-# 3. 基础代理组
-Proxy = select, 机场订阅, 机场订阅2
+# ------------------- 主要出国策略组 -------------------
+最快美台日德 = url-test, 美国, 台湾, 日本, 德国, url=http://www.gstatic.com/generate_204, interval=600, tolerance=50, timeout=5000, lazy=true, udp=true
+
+# 下面四个节点组用于手动选择或fallback使用
+美国 = select, 🇺🇸US-01, 🇺🇸US-02, 🇺🇸US-03, ... (这里可手动填节点名，或用select-regex从AllProxies过滤)
+台湾 = select, 🇹🇼TW-01, 🇹🇼TW-02, ...
+日本 = select, 🇯🇵JP-01, 🇯🇵JP-02, ...
+德国 = select, 🇩🇪DE-01, 🇩🇪DE-02, ...
+
+# 手动选择组（用于测试或特殊情况）
+手动选择 = select, 直连, 最快美台日德, 机场A, 机场B, 全部节点
+
+# ------------------- 特殊服务强制策略 -------------------
+直连专用 = select, 直连, 手动选择
+
+# ------------------- 常用服务组 -------------------
+Gemini策略 = select, 最快美台日德, 手动选择
+Google策略 = select, 最快美台日德, 手动选择
+YouTube策略 = select, 最快美台日德, 手动选择
+Copilot策略 = select, 最快美台日德, 手动选择
+OpenAI策略 = select, 最快美台日德, 手动选择
+
+115策略 = select, 直连
+Emby策略 = select, 直连
+12306策略 = select, 直连
 
 [Rule]
-# 自动直连：115, Emby, 12306
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/115/115.list, DIRECT
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Emby/Emby.list, DIRECT
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/12306/12306.list, DIRECT
+# 优先级最高：特殊服务强制直连
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/115/115.list,115策略
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Emby/Emby.list,Emby策略
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/12306/12306.list,12306策略
 
-# 自动加速：Gemini, Google, YouTube, Copilot, OpenAI
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Gemini/Gemini.list, Fast_Auto
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Google/Google.list, Fast_Auto
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/YouTube/YouTube.list, Fast_Auto
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Copilot/Copilot.list, Fast_Auto
-RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/OpenAI/OpenAI.list, Fast_Auto
+# 媒体/大厂服务走美国/台/日/德最快节点
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Gemini/Gemini.list,Gemini策略
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Google/Google.list,Google策略
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/YouTube/YouTube.list,YouTube策略
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Copilot/Copilot.list,Copilot策略
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/OpenAI/OpenAI.list,OpenAI策略
 
-# 基础规则
-# 国内直连
-GEOIP, CN, DIRECT
-# 国外代理
-FINAL, Proxy
+# 常规分流（blackmatrix7常用规则集，可按需增减）
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/China/China.list,直连
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/ChinaCompanyIp/ChinaCompanyIp.list,直连
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Proxy/Proxy.list,最快美台日德
 
-[Host]
+# 兜底规则
+GEOIP,CN,直连
+GEOIP,LAN,直连
+FINAL,最快美台日德
 
-[Script]
+[MITM]
+hostname = *.openai.com, *.youtube.com, *.google.com, *.gstatic.com, *.googleapis.com, *.ggpht.com, ai.com
