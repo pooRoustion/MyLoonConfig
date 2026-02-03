@@ -1,0 +1,45 @@
+[General]
+ipv6 = false
+dns-server = system, 119.29.29.29, 223.5.5.5
+skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost, *.local, e.crashlytics.com, captures.icloud.com, mtalk.google.com, alt*.mtalk.google.com
+bypass-tun = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4
+
+[Proxy]
+# 此处手动添加节点，或通过下面的 [Proxy Group] 订阅
+# 示例：Direct = builtin, direct
+
+[Proxy Group]
+# 1. 订阅源：使用 filter 剔除香港节点 (HK|香港)
+# 请在下方 "" 中替换为您实际的机场订阅链接
+机场订阅 = subscribe, url="您的机场订阅链接1", filter="^(?!.*(HK|香港|HongKong)).*$"
+机场订阅2 = subscribe, url="您的机场订阅链接2", filter="^(?!.*(HK|香港|HongKong)).*$"
+
+# 2. 自动测速组：Gemini, Google, YouTube, Copilot, OpenAI 使用
+# 筛选美国、台湾、日本、德国节点，并自动切换最快
+Fast_Auto = url-test, Proxy, 机场订阅, 机场订阅2, filter="(?i)US|USA|美国|TW|Taiwan|台湾|JP|Japan|日本|DE|Germany|德国", url=http://www.gstatic.com/generate_204, interval=300
+
+# 3. 基础代理组
+Proxy = select, 机场订阅, 机场订阅2
+
+[Rule]
+# 自动直连：115, Emby, 12306
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/115/115.list, DIRECT
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Emby/Emby.list, DIRECT
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/12306/12306.list, DIRECT
+
+# 自动加速：Gemini, Google, YouTube, Copilot, OpenAI
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Gemini/Gemini.list, Fast_Auto
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Google/Google.list, Fast_Auto
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/YouTube/YouTube.list, Fast_Auto
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/Copilot/Copilot.list, Fast_Auto
+RULE-SET, https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Loon/OpenAI/OpenAI.list, Fast_Auto
+
+# 基础规则
+# 国内直连
+GEOIP, CN, DIRECT
+# 国外代理
+FINAL, Proxy
+
+[Host]
+
+[Script]
